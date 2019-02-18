@@ -1,0 +1,4 @@
+---
+sysctl_configs:
+  - ipv6.conf
+register_monitoring: "yes"

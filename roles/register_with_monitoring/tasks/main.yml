@@ -1,0 +1,7 @@
+---
+- name: register node_exporter in monitoring
+  template:
+    src: "monitoring.yml"
+    dest: "/home/{{ monitoring_user }}/scrapetargets/{{ target_domain.split('.')[0] }}-{{ endpoint_type }}.yml"
+  delegate_to: "{{ monitoring_host }}"
+  remote_user: "{{ monitoring_user }}"

@@ -1,0 +1,59 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+
+  vars:
+    server_name: multitenant-prometheus.org
+    open_ports:
+    - http
+    - https
+    - 8000
+    - 8080
+    dhparams_path: /etc/ssl/dhparams.pem
+    dhparams_strength: 512 # fast, but insecure, use at least 4096 for production
+    le_cert_dir: /etc/dehydrated
+    le_chall_dir: /var/www/dehydrated
+    debdistro: stretch
+    rootkeys:
+      - "ssh-ed25519 ighicux9bai2oocaezoeCiip7Guzeeshel2koh1Uyie2eimeiGeN2eyuSh6eithiZeid master@of.desaster"
+    promconfd: "/etc/prometheus"
+    promstoraged: "/var/prometheus"
+    prometheus_node_txtfile_dir: "{{ promstoraged }}/node/txtfiles"
+    nginx_http_conf_dir: "/etc/nginx/http.conf.d"
+    nginx_main_conf_dir: "/etc/nginx/main.conf.d"
+    nginx_htpasswd_dir: "/etc/nginx/htpasswd"
+    nginx_load_modules_file: "{{ nginx_main_conf_dir }}/load_modules"
+
+    users:
+    - name: masterofdesaster
+      operator: yes
+      email:
+        - foo@bar.baz
+      scheme: https
+      ba_user: prometheus
+      ba_pass: letthescraperin
+      login_pass: letmein
+      sshkey: "ssh-ed25519 ighicux9bai2oocaezoeCiip7Guzeeshel2koh1Uyie2eimeiGeN2eyuSh6eithiZeid master@of.desaster"
+    - name: apprenticeofdesaster
+      operator: no
+      email:
+        - baz@bar.foo
+      scheme: https
+      ba_user: prometheus
+      ba_pass: letthescraperin
+      login_pass: letmein
+      sshkey: "ssh-ed25519 ighicux9bai2oocaezoeCiip7Guzeeshel2koh1Uyie2eimeiGeN2eyuSh6eithiZeid apprentice@of.desaster"
+
+  roles:
+  - role: debian
+    register_monitoring: "no"
+  - role: monitoringserver
+    alertmanager_fallback_mailaddress: "masterofdesaster@remote-desaster.base"
+    alertmanager_smtp_from: "alert@multitenant-prometheus.org"
+  - role: nginx-reverseproxy
+    proxy_name: prometheus_direct_access
+    outer_port: 8000
+    inner_port: 9090
+    username: "masterofdesaster"
+    password: "givemeabypass"

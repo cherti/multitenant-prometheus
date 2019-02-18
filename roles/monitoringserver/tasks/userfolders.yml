@@ -1,0 +1,43 @@
+---
+- name: create directories for scrapetargets and rules
+  file:
+    path: "/home/{{ user.name }}/{{ item }}"
+    state: directory
+    recurse: yes
+    owner: prometheus
+    group: "{{ user.name }}"
+    mode: 'u=rwx,g=rwx,o-rwx'
+  loop:
+    - scrapetargets
+    - rules
+
+- name: create directories for blackbox-targets (IPv4)
+  file:
+    path: "/home/{{ user.name }}/blackboxtargets/{{ item }}_ipv4"
+    state: directory
+    recurse: yes
+    owner: prometheus
+    group: "{{ user.name }}"
+    mode: 'u=rwx,g=rwx,o-rwx'
+  loop: "{{ blackboxmodules }}"
+
+- name: create directories for blackbox-targets (IPv6)
+  file:
+    path: "/home/{{ user.name }}/blackboxtargets/{{ item }}_ipv6"
+    state: directory
+    recurse: yes
+    owner: prometheus
+    group: "{{ user.name }}"
+    mode: 'u=rwx,g=rwx,o-rwx'
+  loop: "{{ blackboxmodules }}"
+
+- name: deploy examplefiles
+  copy:
+    src: "{{ item }}.yml"
+    dest: "/home/{{ user.name }}/{{ item }}.yml"
+    owner: "{{ user.name }}"
+    group: "{{ user.name }}"
+    mode: 'u=r,g=r,o=r'
+  loop:
+    - examplerules
+    - examplescrapetargets

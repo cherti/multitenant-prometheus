@@ -1,0 +1,43 @@
+global:
+  # The smarthost and SMTP sender used for mail notifications.
+  smtp_smarthost: 'localhost:25'
+  smtp_from: '{{ alertmanager_smtp_from }}'
+  smtp_require_tls: false
+
+# The directory from which notification templates are read.
+templates:
+- '{{ promconfd }}/alertingtemplate.tmpl'
+
+route:
+  group_by: ['job']
+  group_wait: 3s
+  group_interval: 5m
+  repeat_interval: 12h
+  receiver: default
+  routes:
+{% for user in users %}
+  - match:
+      job: "{{ user.name }}"
+    receiver: "{{ user.name }}"
+{% endfor %}
+
+
+inhibit_rules:
+- source_match:
+    severity: 'high'
+  target_match:
+    severity: 'low'
+  equal: ['instance']
+
+
+receivers:
+- name: default
+  email_configs:
+  - to: '{{ alertmanager_fallback_mailaddress }}'
+    send_resolved: yes
+{% for user in users %}
+- name: '{{ user.name }}'
+  email_configs:
+  - to: '{{ user.email | join(", ") }}'
+    send_resolved: yes
+{% endfor %}

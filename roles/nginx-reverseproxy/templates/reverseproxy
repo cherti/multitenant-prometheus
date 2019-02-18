@@ -1,0 +1,23 @@
+server {
+
+	listen {{ outer_port }} ssl default_server;
+	listen [::]:{{ outer_port }} ssl default_server;
+
+	auth_basic "login to proceed";
+	auth_basic_user_file {{ nginx_htpasswd_dir }}/rp_{{ proxy_name }};
+
+	location / {
+		proxy_pass http://localhost:{{ inner_port }};
+		proxy_set_header X-Clacks-Overhead "GNU Terry Pratchett";
+		proxy_set_header X-Pect: "The Spanish Inquisition";
+	}
+
+
+	ssl_certificate {{ le_cert_dir }}/certs/{{ server_name }}/fullchain.pem;
+	ssl_certificate_key {{ le_cert_dir }}/certs/{{ server_name }}/privkey.pem;
+
+	include /etc/nginx/ssl_ciphers.conf;
+
+	server_name {{ server_name }};
+
+}

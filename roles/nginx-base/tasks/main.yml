@@ -1,0 +1,32 @@
+---
+
+- name: install packages
+  apt: package={{ item }} state=present
+  loop:
+  - nginx
+  - openssl
+  - python-passlib
+- name: create users
+  user: name=www-data shell=/usr/sbin/nologin
+- name: deploy directory-structure
+  file: name={{ item }} state=directory
+  loop:
+  - /etc/nginx
+  - "{{ nginx_http_conf_dir }}"
+  - "{{ nginx_main_conf_dir }}"
+  - "{{ nginx_htpasswd_dir }}"
+  - /etc/nginx/lua_modules
+- name: Deploy prometheus-lua-module for nginx
+  copy:
+    src: bin/prometheus.lua
+    dest: /etc/nginx/lua_modules/prometheus.lua
+    owner: www-data
+- name: deploy config
+  template: src={{ item }} dest=/etc/nginx/{{ item }}
+  loop:
+  - nginx.conf
+  - mime.types
+  - ssl_ciphers.conf
+  notify: restart nginx
+- name: enable service
+  service: name=nginx.service enabled=yes

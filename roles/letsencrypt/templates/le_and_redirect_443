@@ -1,0 +1,14 @@
+server {
+	listen 80 default_server;
+	listen [::]:80 default_server;
+
+	server_name _;
+
+	location /.well-known {
+		root {{ le_chall_dir }};
+	}
+
+	location / {
+		return 301 https://$host$request_uri;
+	}
+}

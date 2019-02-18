@@ -1,0 +1,13 @@
+[Unit]
+Description=Prometheus Server Instance
+After=network-online.service
+Wants=network-online.target
+
+[Service]
+User=prometheus
+Type=simple
+ExecStart=/opt/promauthproxy -web.listen-address=127.0.0.1:80%i -web.proxy-to=127.0.0.1:90%i
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,5 @@
+- targets:
+  - '{{ server_name }}:8080'
+  labels:
+    instance: "{{ server_name.split('.')[0] }}"
+    endpoint: node

@@ -1,0 +1,25 @@
+---
+
+# requires letsencrypt-role to be run beforehand
+
+- name: install packages
+  apt: package={{ item }} state=present
+  loop:
+  - postfix
+
+
+# Postfix
+
+- name: deploy postfix-config
+  template: src={{ item }} dest=/etc/postfix/{{ item }}
+  loop:
+  - main.cf
+  - master.cf
+  notify: restart postfix
+
+- name: setup groups for postfix-user
+  user: name=postfix
+  notify: restart postfix
+
+- name: enable and start postfix
+  systemd: name=postfix.service state=restarted enabled=yes

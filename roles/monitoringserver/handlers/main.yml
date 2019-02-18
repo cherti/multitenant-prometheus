@@ -1,0 +1,28 @@
+---
+
+- name: restart postfix
+  systemd: name=postfix.service state=restarted daemon_reload=yes
+
+- name: restart prometheus
+  systemd: name=prometheus.service state=restarted daemon_reload=yes
+
+- name: restart alertmanager
+  systemd: name=prometheus-alertmanager.service state=restarted daemon_reload=yes
+
+- name: restart blackbox-exporter
+  systemd: name=prometheus-node-exporter.service state=restarted daemon_reload=yes
+
+- name: restart promauthproxy
+  systemd: name=promauthproxy@{{ item }}.service state=restarted daemon_reload=yes
+  loop:
+    - 90
+    - 93
+
+- name: restart nginx
+  systemd: name=nginx.service state=restarted daemon_reload=yes
+
+- name: restart sshd
+  systemd: name=ssh.service state=restarted daemon_reload=yes
+
+- name: restart nftables
+  systemd: name=nftables.service state=restarted daemon_reload=yes

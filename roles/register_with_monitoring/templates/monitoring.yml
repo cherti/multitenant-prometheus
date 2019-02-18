@@ -1,0 +1,6 @@
+---
+- targets:
+  - '{{ target_domain }}:{{ target_port }}'
+  labels:
+    instance: "{{ target_domain.split('.')[0] }}"
+    endpoint: "{{ endpoint_type }}"

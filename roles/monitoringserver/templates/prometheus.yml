@@ -1,0 +1,76 @@
+# my global config
+global:
+  scrape_interval:     15s # Set the scrape interval to every 15 seconds. Default is every 1 minute.
+  evaluation_interval: 15s # Evaluate rules every 15 seconds. The default is every 1 minute.
+  # scrape_timeout is set to the global default (10s).
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+  - static_configs:
+    - targets:
+      - 127.0.0.1:9093
+
+# Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
+rule_files:
+    - /etc/prometheus/rules/*.yml
+
+# A scrape configuration containing exactly one endpoint to scrape:
+# Here it's Prometheus itself.
+scrape_configs:
+  # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
+  - job_name: 'prometheus'
+
+    # metrics_path defaults to '/metrics'
+    # scheme defaults to 'http'.
+
+    static_configs:
+        - targets: ['localhost:9090', 'localhost:9093', 'localhost:9100']
+
+{% for user in users %}
+
+  - job_name: {{ user.name }}
+
+    # metrics_path defaults to '/metrics'
+    # scheme defaults to 'http'. (scheme: http)
+    scheme: {{ user.scheme }}
+{% if user.ba_user != "" %}
+    basic_auth:
+      username: '{{ user.ba_user }}'
+      password: '{{ user.ba_pass }}'
+{% endif %}
+    file_sd_configs:
+      - files:
+        - /home/{{ user.name }}/scrapetargets/*.json
+        - /home/{{ user.name }}/scrapetargets/*.yml
+        - /home/{{ user.name }}/scrapetargets/*.yaml
+
+{% for module in blackboxmodules %}
+{% for ip_number in [4, 6] %}
+  - job_name: '{{ user.name }}-blackbox-{{ module }}-ipv{{ ip_number }}'
+    metrics_path: /probe
+    params:
+      module: [{{ module }}_ipv{{ ip_number }}]
+    file_sd_configs:
+      - files:
+        - /home/{{ user.name }}/blackboxtargets/{{ module }}_ipv{{ ip_number }}/*.json
+        - /home/{{ user.name }}/blackboxtargets/{{ module }}_ipv{{ ip_number }}/*.yml
+        - /home/{{ user.name }}/blackboxtargets/{{ module }}_ipv{{ ip_number }}/*.yaml
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 127.0.0.1:9115
+      - target_label: job
+        replacement: {{ user.name }}
+      - target_label: "blackbox_module"
+        replacement: {{ module }}
+      - target_label: "ip_version"
+        replacement: ipv{{ ip_number }}
+
+{% endfor %}
+{% endfor %}
+
+{% endfor %}

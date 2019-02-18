@@ -1,0 +1,34 @@
+---
+groups:  # all alerts must be held in groups
+- name: example
+  rules:  # now come the actual rules
+
+  # Alert for any instance that is unreachable for >5 minutes.
+  - alert: InstanceDown  # name of the alert
+    expr: up == 1  # Prometheus-Query-Expression, as used in the webinterface, with a boolean comparison operator
+    for: 5m  # duration that expr must be fulfilled for this alert to actually fire
+    labels:  # labels this alert must match (those can be set in the target.json)
+      severity: high
+    annotations:  # additional annotations sent with the alert
+      summary: "Instance {{ $labels.instance }} down for 5m now."
+
+  # Alert on a failing blackbox-probe
+  - alert: ProbingFail
+    expr: probe_success == 0
+    for: 10m
+    annotations:
+      summary: "Blackbox-probe for {{ $labels.instance }} failed."
+
+  # Alert if SSL-Certificate is about to expire
+  - alert: CertToExpire
+    expr: probe_ssl_earliest_cert_expiry - time() < 86400 * 5
+    annotations:
+      summary: "Certificate for {{ $labels.instance }} expires in less than 5 days."
+
+  # Alert for any instance that has a median request latency >1s.
+  - alert: APIHighRequestLatency
+    expr: api_http_request_latencies_second{quantile="0.5"} > 1
+    for: 10m
+    annotations:
+      summary: "High request latency on {{ $labels.instance }}."
+

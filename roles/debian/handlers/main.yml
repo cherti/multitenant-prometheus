@@ -1,0 +1,7 @@
+---
+
+- name: restart nftables
+  systemd: name=nftables.service state=restarted daemon_reload=yes
+
+- name: restart node-exporter
+  systemd: name=prometheus-node-exporter.service state=restarted daemon_reload=yes

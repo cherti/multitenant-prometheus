@@ -1,0 +1,63 @@
+{{ define "__alertmanager" }}AlertManager{{ end }}
+{{ define "__alertmanagerURL" }}{{ .ExternalURL }}/#/alerts?receiver={{ .Receiver }}{{ end }}
+
+{{ define "__description" }}{{ end }}
+
+{{ define "__text_alert_list" }}{{ range . }}Labels:
+{{ range .Labels.SortedPairs . }} - {{ .Name }} = {{ .Value }}
+{{ end }}Annotations:
+{{ range .Annotations.SortedPairs . }} - {{ .Name }} = {{ .Value }}
+{{ end}}
+{{ end }}{{ end }}
+
+{{ define "email.default.subject" }}{{ if eq (len .Alerts.Firing) 1 }}{{ with index .Alerts 0 }}[!] Alert {{ .Labels.alertname }} on {{ .Labels.instance }}{{ end }}{{ end }}{{ if gt (len .Alerts.Firing) 1 }}[!] {{ .Alerts.Firing | len }} firing alerts{{ end }}{{ if eq .Status "resolved" }}All alerts resolved{{ end }}{{ end }}
+
+{{ define "email.default.subject_readable" }}
+{{ if eq (len .Alerts.Firing) 1 }}
+{{ with index .Alerts 0 }}
+[!] Alert {{ .Labels.alertname }} on {{ .Labels.instance }}
+{{ end }}
+{{ end }}
+{{ if gt (len .Alerts.Firing) 1 }}
+[!] {{ .Alerts.Firing | len }} firing alerts
+{{ end }}
+{{ if eq .Status "resolved" }}
+All alerts resolved
+{{ end }}
+{{ end }}
+
+{{ define "email.default.html" }}
+{{ if gt (len .Alerts.Firing) 0 }}
+	<p>You have {{ if le (len .Alerts.Firing) 1 }}a{{ end }} <strong>firing</strong> alert{{ if gt (len .Alerts.Firing) 1 }}s{{ end }}:
+    <ul>
+    {{ range .Alerts }}
+      {{ if eq .Status "firing" }}
+          <li>{{ .Labels.alertname }} on {{ .Labels.instance }}</li>
+      {{ end }}
+    {{ end }}
+    </ul></p>
+{{ end }}
+{{ if gt (len .Alerts.Resolved) 0 }}
+    <p>
+{{ if le (len .Alerts.Firing) 1 }}
+	The following alert has been <strong>resolved</strong>:
+{{ else }}
+	The following alerts have been <strong>resolved</strong>:
+{{ end }}
+    <ul>
+    {{ range .Alerts }}
+      {{ if eq .Status "resolved" }}
+          <li>{{ .Labels.alertname }} on {{ .Labels.instance }}</li>
+      {{ end }}
+    {{ end }}
+    </ul>
+    </p>
+{{ end }}
+
+<p>
+For more details as well as managing silences see here:<br>
+{{ template "__alertmanagerURL" . }}
+</p>
+
+
+{{ end }}

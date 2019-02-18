@@ -1,0 +1,13 @@
+[Unit]
+Description=Check and possibly renew soon-to-expire TLS-certificates
+
+[Timer]
+OnCalendar=monthly
+AccuracySec=1h
+
+OnBootSec=3min
+
+Persistent=true
+
+[Install]
+WantedBy=multi-user.target

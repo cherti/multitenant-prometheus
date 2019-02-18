@@ -1,0 +1,275 @@
+---
+
+# backend setup
+- name: create prometheus group
+  group: name=prometheus
+
+- name: create prometheus user
+  user: name=prometheus shell=/usr/sbin/nologin group=prometheus groups=users create_home=no
+
+- name: install package dependencies
+  apt: name={{ item }} update_cache=yes
+  loop:
+    - python3-yaml
+    - git
+
+- name: install prometheus-components
+  apt: name={{ item }}  default_release={{ debdistro }}-backports update_cache=yes
+  loop:
+    - prometheus
+    - prometheus-blackbox-exporter
+      #- prometheus-alertmanager
+  notify:
+    - restart prometheus
+    - restart blackbox-exporter
+
+- name: create prometheus-directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    group: prometheus
+    owner: prometheus
+    mode: 'u=rwx,g=rwx,o-rwx'
+  loop:
+  - "{{ promconfd }}"
+  - "{{ promconfd }}/rules"
+  - "{{ promstoraged }}/prometheus"
+  - "{{ promstoraged }}/alertmanager"
+
+- name: manually deploy recent Alertmanager and other binaries
+  copy:
+    src: "bin/{{ item }}"
+    dest: "/opt/{{ item }}"
+    owner: prometheus
+    group: prometheus
+    mode: 'u=rx,g=rx,o=rx'
+  loop:
+    - alertmanager
+    - amtool
+    - promauthproxy
+  notify:
+    - restart alertmanager
+    - restart promauthproxy
+
+- name: deploy custom scripts
+  copy:
+    src: "{{ item }}"
+    dest: "/opt/{{ item }}"
+    owner: prometheus
+    group: prometheus
+    mode: 'u=rx,g=rx,o=rx'
+  loop:
+    - bin/promql-labelinjector
+    - parserules.py
+    - gentargetjson.py
+
+- name: deploy parserules-shellwrapper
+  copy:
+    src: "parserules"
+    dest: "/usr/local/bin/parserules"
+    owner: prometheus
+    group: prometheus
+    mode: 'u=rx,g=rx,o=rx'
+
+- name: deploy configs
+  template: src={{ item }} dest={{ promconfd }}/{{ item }}
+  loop:
+    - prometheus.yml
+    - alertmanager.yml
+    - blackbox.yml
+  notify:
+    - restart prometheus
+    - restart alertmanager
+    - restart blackbox-exporter
+
+- name: deploy alerting template
+  copy: src={{ item }} dest={{ promconfd }}/{{ item }}
+  loop:
+    - alertingtemplate.tmpl
+  notify:
+    - restart alertmanager
+
+- name: deploy system rules file
+  copy:
+    src: systemrules.yml
+    dest: "{{ promconfd }}/rules/systemrules.yml"
+    owner: prometheus
+    group: prometheus
+    mode: 'u=r,g-rwx,o-rwx'
+  notify:
+    - restart prometheus
+
+- name: deploy servicefiles
+  template: src={{ item }}.service dest=/etc/systemd/system/{{ item }}.service
+  loop:
+      - "prometheus"
+      - "prometheus-alertmanager"
+      - "promauthproxy@"
+      - "prometheus-blackbox-exporter"
+  notify:
+    - restart prometheus
+    - restart alertmanager
+    - restart promauthproxy
+
+- name: deploy nginx-reverseproxys
+  template:
+    src: "nginx-{{ item }}.conf"
+    dest: "/etc/nginx/http.conf.d/monitoring-{{item}}"
+  loop:
+    - alertmanager
+    - prometheus
+  notify:
+    - restart nginx
+
+- name: populate htpasswd-file for nginx-reverseproxys
+  htpasswd:
+    path: /etc/nginx/htpasswd/coopmon
+    name: "{{ item.name }}"
+    password: "{{ item.login_pass }}"
+    owner: root
+    group: root
+    mode: 'u=r,g=r,o=r'
+  loop: "{{ users }}"
+  notify:
+    - restart promauthproxy
+
+- name: disable TCP-Forwarding in sshd
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    state: present
+    regexp: 'AllowTCPForwarding'
+    line: 'AllowTCPForwarding no'
+  notify:
+    - restart sshd
+
+- name: deploy firewall rules
+  template: src=nftables.conf dest=/etc/nftables.conf
+  notify: restart nftables
+
+# user setup
+
+- name: ensure necessary groups are present
+  group: name={{ item }}
+  loop:
+    - users
+    - operators
+
+- name: create user-specific groups
+  group: name={{ item.name }}
+  loop: "{{ users }}"
+
+- name: create users
+  user:
+    name: "{{ item.name }}"
+    shell: /bin/bash
+    group: "{{ item.name }}"
+    groups: "users,{{ item.name }}"
+  loop: "{{ users }}"
+
+- name: add operators to operators-group
+  user:
+    name: "{{ item.name }}"
+    groups: operators
+    append: yes
+  loop: "{{ users }}"
+  when: item.operator
+
+- name: deploy user-ssh-keys
+  authorized_key:
+    user: "{{ item.name }}"
+    key: "{{ item.sshkey }}"
+  loop: "{{ users }}"
+
+  #- name: create directories for scrapetargets
+  #  file:
+  #    path: "/home/{{ item.name }}/scrapetargets"
+  #    state: directory
+  #    owner: prometheus
+  #    group: "{{ item.name }}"
+  #    mode: 'u=rwx,g=rwx,o-rwx'
+  #  with_items: "{{ users }}"
+  #
+  #- name: create directories for rules
+  #  file:
+  #    path: "/home/{{ item.name }}/rules"
+  #    state: directory
+  #    owner: prometheus
+  #    group: "{{ item.name }}"
+  #    mode: 'u=rwx,g=rwx,o-rwx'
+  #  with_items: "{{ users }}"
+
+- include_tasks: userfolders.yml
+  loop: "{{ users }}"
+  loop_control:
+    loop_var: user
+
+    #- name: deploy example-rules-file
+    #  copy:
+    #    src: examplerules.yml
+    #    dest: "/home/{{ item.name }}/examplerules.yml"
+    #    owner: "{{ item.name }}"
+    #    group: "{{ item.name }}"
+    #    mode: 'u=r,g=r,o=r'
+    #  with_items: "{{ users }}"
+    #
+    #- name: deploy example-scrapetargets.yml-file
+    #  copy:
+    #    src: files/examplescrapetargets.yml
+    #    dest: "/home/{{ item.name }}/examplescrapetargets.yml"
+    #    owner: "{{ item.name }}"
+    #    group: "{{ item.name }}"
+    #    mode: 'u=r,g=r,o=r'
+    #  with_items: "{{ users }}"
+
+- name: make ruleparsing-script sudo-executable for all users
+  lineinfile:
+   path: /etc/sudoers
+   state: present
+   regexp: '^%users\s'
+   line: '%users ALL=(ALL) NOPASSWD: /opt/parserules.py'
+
+- name: init docs-git
+  command: git init --bare /srv/docs.git
+  args:
+    creates: /srv/docs.git
+
+- name: ensure correct permissions for docs-git
+  file:
+    dest: /srv/docs.git
+    owner: prometheus
+    group: operators
+    mode: 'u=rwx,g=rwx,o=rx'
+    recurse: yes
+
+- name: deploy motd-file to announce documentation
+  copy:
+    src: motd
+    dest: /etc/motd
+
+- name: add prometheus-user to all user groups
+  user:
+    name: prometheus
+    shell: /usr/sbin/nologin
+    group: prometheus
+    create_home: no
+    groups: "{{ item.name }}"
+    append: yes
+  loop: "{{ users }}"
+
+
+# start it up
+
+- name: enable services
+  systemd: name={{ item }}.service enabled=yes state=started daemon_reload=yes
+  loop:
+      - "prometheus"
+      - "prometheus-alertmanager"
+      - "promauthproxy@90"
+      - "promauthproxy@93"
+      - "prometheus-blackbox-exporter"
+  notify:
+    - restart prometheus
+    - restart alertmanager
+    - restart promauthproxy
+    - restart blackbox-exporter
+

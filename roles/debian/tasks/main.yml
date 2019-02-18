@@ -1,0 +1,83 @@
+---
+# sources.list with backports enabled; likely only needed when
+# installing the node_exporter from debian repos (recommended)
+- name: deploy sources.list
+  template:
+    src: sources.list
+    dest: /etc/apt/sources.list
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+- name: install minimal package set
+  apt:
+    name: "{{ packages }}"
+    state: present
+    update_cache: yes
+  vars:
+    packages:
+    - haveged
+    - unattended-upgrades
+    - nftables
+- name: enable service minimal set
+  systemd: name={{ item }} state=started enabled=yes
+  loop:
+  - haveged
+  - systemd-timesyncd
+  - unattended-upgrades
+- name: deploy unattended-upgrades-config
+  template:
+    src: "unattended-upgrades/{{ item }}"
+    dest: "/etc/apt/apt.conf.d/{{ item }}"
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+  loop:
+  - 50unattended-upgrades
+  - 20auto-upgrades
+  - 02periodic
+- name: deploy ssh-config
+  copy:
+    src: sshd_config
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: 'u=rw,g=r,o=r'
+- name: generate dhparams (takes looooooong)
+  command: openssl dhparam -out {{ dhparams_path }} {{ dhparams_strength }} creates={{ dhparams_path }}
+
+- name: deploy firewall rules
+  template: src=nftables.conf dest=/etc/nftables.conf
+  notify: restart nftables
+
+- name: enable and start nft
+  systemd: name=nftables.service state=started enabled=yes daemon_reload=yes
+
+# monitoring setting up a node_exporter on the local machine
+- name: create prometheus group
+  group: name=prometheus
+
+- name: create prometheus user
+  user: name=prometheus shell=/usr/sbin/nologin group=prometheus groups=users create_home=no
+
+- name: install node_exporter
+  apt: name=prometheus-node-exporter default_release={{ debdistro }}-backports update_cache=yes
+  notify:
+    - restart node-exporter
+
+- name: deploy prometheus.node-exporter.service
+  template: src=prometheus-node-exporter.service dest=/etc/systemd/system/prometheus-node-exporter.service
+  notify:
+    - restart node-exporter
+
+- name: enable node_exporter
+  systemd: name=prometheus-node-exporter.service enabled=yes state=started daemon_reload=yes
+  notify:
+    - restart node-exporter
+
+- name: create node-exporter-txtfile-collector
+  file:
+    path: "{{ promstoraged }}/node/txtfiles"
+    state: directory
+    group: prometheus
+    owner: prometheus
+    mode: 'u=rwx,g=rwx,o-rwx'

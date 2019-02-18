@@ -1,0 +1,63 @@
+---
+- name: Ensure curl is installed
+  apt: name=curl state=present
+
+- name: Ensure letsencrypt-group is present
+  group: name=letsencrypt state=present
+
+- name: Ensure Challenge directory exists
+  file: path={{ le_chall_dir }}/.well-known/acme-challenge state=directory mode=0755 owner=root recurse=yes
+
+- name: Ensure existence of directories
+  file: path={{ item }} state=directory mode=0755 owner=root group=letsencrypt
+  loop:
+    - "{{ le_cert_dir }}"
+    - "{{ le_cert_dir }}/reload-services"
+
+- name: Ensure dehydrated-config exists
+  template: src=config dest={{ le_cert_dir }}/config mode=0750 owner=root
+
+- name: setup webserver on :80
+  template: src=le_and_redirect_443 dest=/etc/nginx/http.conf.d/le_and_redirect_443 mode=a=r owner=www-data
+
+- name: start webserver on :80
+  service: name=nginx state=restarted
+
+- name: Deploy dehydrated
+  copy: src=bin/dehydrated dest="{{ le_cert_dir }}/dehydrated" mode=0700 owner=root
+
+- name: Register with letsencrypt
+  shell: ./dehydrated --register --accept-terms
+  args:
+    chdir: "{{ le_cert_dir }}"
+
+- name: request certificate
+  #shell: ./dehydrated -c -f "{{ le_cert_dir }}/config" -d "{{ item }}"
+  shell: "mkdir -p certs/{{ item }} && ln -sf /etc/ssl/certs/ssl-cert-snakeoil.pem certs/{{ item }}/fullchain.pem && ln -sf /etc/ssl/private/ssl-cert-snakeoil.key certs/{{ item }}/privkey.pem"
+  loop: "{{ domains }}"
+  args:
+    chdir: "{{ le_cert_dir }}"
+
+- name: set appropriate ownership and permissions
+  file: dest={{ le_cert_dir }}/certs group=letsencrypt mode=0550 recurse=yes
+
+- name: deploy refresh-script
+  template: src=refresh.sh dest="{{ le_cert_dir }}/refresh.sh" mode=0700 owner=root
+
+- name: put service into restart-on-refresh.sh
+  lineinfile:
+  loop: "{{ le_services }}"
+  args:
+    destfile: "{{ le_cert_dir }}/reload-services/{{ item }}"
+    create: yes
+    line: "systemctl restart {{ item }}"
+    state: present
+
+- name: Deploy letsencrypt-renew.service
+  copy: src=letsencrypt-renew.service dest=/etc/systemd/system/letsencrypt-renew.service
+
+- name: Deploy letsencrypt-renew.timer
+  copy: src=letsencrypt-renew.timer dest=/etc/systemd/system/letsencrypt-renew.timer
+
+- name: Enable letsencrypt-renew.timer
+  systemd: name=letsencrypt-renew.timer enabled=yes state=started

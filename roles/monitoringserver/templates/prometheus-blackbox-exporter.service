@@ -1,0 +1,12 @@
+[Unit]
+Description=Blackbox exporter for Prometheus
+Documentation=https://prometheus.io/docs/introduction/overview/
+
+[Service]
+Restart=always
+User=prometheus
+ExecStart=/usr/bin/prometheus-blackbox-exporter --config.file={{ promconfd }}/blackbox.yml --web.listen-address=127.0.0.1:9115
+
+[Install]
+WantedBy=multi-user.target
+

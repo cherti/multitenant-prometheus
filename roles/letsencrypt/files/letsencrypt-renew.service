@@ -1,0 +1,7 @@
+[Unit]
+Description=Check and possibly renew soon-to-expire TLS-certificates
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/etc/dehydrated/refresh.sh

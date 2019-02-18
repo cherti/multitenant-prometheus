@@ -1,0 +1,19 @@
+---
+dependencies:
+    - role: letsencrypt
+      domains:
+        - "{{ server_name }}"
+      le_services:
+        - nginx
+    - role: nginx-reverseproxy
+      proxy_name: node_auth
+      outer_port: 8080
+      inner_port: 9100
+      username: "{{ monitoring_username }}"
+      password: "{{ monitoring_password }}"
+      when: register_monitoring == "yes"
+    - role: register_with_monitoring
+      target_domain: "{{ server_name }}"
+      target_port: 8080
+      endpoint_type: node
+      when: register_monitoring == "yes"

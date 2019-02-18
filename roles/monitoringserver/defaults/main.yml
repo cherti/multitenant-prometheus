@@ -1,0 +1,6 @@
+---
+blackboxmodules:
+    - http_2xx
+    - tcp_connect
+    - ssh
+    - smtp_starttls

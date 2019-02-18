@@ -1,0 +1,2 @@
+WELLKNOWN="{{ le_chall_dir}}/.well-known/acme-challenge"
+#CA="https://acme-staging.api.letsencrypt.org/directory"

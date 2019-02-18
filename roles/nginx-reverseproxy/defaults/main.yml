@@ -1,0 +1,1 @@
+basicauthfile: /etc/nginx/htpasswd/rp_{{ proxy_name }}

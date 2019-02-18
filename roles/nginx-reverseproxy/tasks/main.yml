@@ -1,0 +1,22 @@
+---
+
+# needed:
+# proxy_name
+# outer_port
+# inner_port
+# server_name
+# username
+# password
+
+- name: ensure python-passlib is present
+  apt: name=python-passlib state=present
+- name: deploy reverse-proxy-config
+  template: src=templates/reverseproxy dest={{ nginx_http_conf_dir }}/rp_{{ proxy_name }}
+  notify: restart nginx
+- name: generate htpasswd
+  htpasswd:
+    name={{ username }}
+    password={{ password }}
+    state=present
+    path={{ nginx_htpasswd_dir }}/rp_{{ proxy_name }}
+  notify: restart nginx
