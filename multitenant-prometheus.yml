@@ -4,7 +4,8 @@
   become_user: root
 
   vars:
-    server_name: multitenant-prometheus.org
+    server_name: guenther.multitenant-prometheus.org
+    public_url: multitenant-prometheus.org
     open_ports:
     - http
     - https

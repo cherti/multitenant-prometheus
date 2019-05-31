@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 User=prometheus
 Type=simple
-ExecStart=/opt/alertmanager --config.file={{ promconfd }}/alertmanager.yml --storage.path={{ promstoraged }}/alertmanager --web.listen-address=127.0.0.1:9093 --web.external-url=https://alertmanager.{{ server_name }}
+ExecStart=/opt/alertmanager --config.file={{ promconfd }}/alertmanager.yml --storage.path={{ promstoraged }}/alertmanager --web.listen-address=127.0.0.1:9093 --web.external-url=https://alertmanager.{{ public_url }}
 Restart=always
 
 [Install]

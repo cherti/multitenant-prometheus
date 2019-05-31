@@ -53,19 +53,19 @@
 
 - name: deploy custom scripts
   copy:
-    src: "{{ item }}"
+    src: "bin/{{ item }}"
     dest: "/opt/{{ item }}"
     owner: prometheus
     group: prometheus
     mode: 'u=rx,g=rx,o=rx'
   loop:
-    - bin/promql-labelinjector
+    - promql-labelinjector
     - parserules.py
     - gentargetjson.py
 
 - name: deploy parserules-shellwrapper
   copy:
-    src: "parserules"
+    src: "bin/parserules"
     dest: "/usr/local/bin/parserules"
     owner: prometheus
     group: prometheus
@@ -102,10 +102,10 @@
 - name: deploy servicefiles
   template: src={{ item }}.service dest=/etc/systemd/system/{{ item }}.service
   loop:
-      - "prometheus"
-      - "prometheus-alertmanager"
-      - "promauthproxy@"
-      - "prometheus-blackbox-exporter"
+    - "prometheus"
+    - "prometheus-alertmanager"
+    - "promauthproxy@"
+    - "prometheus-blackbox-exporter"
   notify:
     - restart prometheus
     - restart alertmanager
@@ -114,7 +114,7 @@
 - name: deploy nginx-reverseproxys
   template:
     src: "nginx-{{ item }}.conf"
-    dest: "/etc/nginx/http.conf.d/monitoring-{{item}}"
+    dest: "{{ nginx_http_conf_dir }}/monitoring-{{ item }}"
   loop:
     - alertmanager
     - prometheus
@@ -123,7 +123,7 @@
 
 - name: populate htpasswd-file for nginx-reverseproxys
   htpasswd:
-    path: /etc/nginx/htpasswd/coopmon
+    path: "{{ nginx_htpasswd_dir }}/coopmon"
     name: "{{ item.name }}"
     password: "{{ item.login_pass }}"
     owner: root
@@ -223,10 +223,10 @@
 
 - name: make ruleparsing-script sudo-executable for all users
   lineinfile:
-   path: /etc/sudoers
-   state: present
-   regexp: '^%users\s'
-   line: '%users ALL=(ALL) NOPASSWD: /opt/parserules.py'
+    path: /etc/sudoers
+    state: present
+    regexp: '^%users\s'
+    line: '%users ALL=(ALL) NOPASSWD: /opt/parserules.py'
 
 - name: init docs-git
   command: git init --bare /srv/docs.git
@@ -239,7 +239,7 @@
     owner: prometheus
     group: operators
     mode: 'u=rwx,g=rwx,o=rx'
-    recurse: yes
+    recurse: true
 
 - name: deploy motd-file to announce documentation
   copy:
@@ -251,9 +251,9 @@
     name: prometheus
     shell: /usr/sbin/nologin
     group: prometheus
-    create_home: no
+    create_home: false
     groups: "{{ item.name }}"
-    append: yes
+    append: true
   loop: "{{ users }}"
 
 
@@ -262,14 +262,13 @@
 - name: enable services
   systemd: name={{ item }}.service enabled=yes state=started daemon_reload=yes
   loop:
-      - "prometheus"
-      - "prometheus-alertmanager"
-      - "promauthproxy@90"
-      - "promauthproxy@93"
-      - "prometheus-blackbox-exporter"
+    - "prometheus"
+    - "prometheus-alertmanager"
+    - "promauthproxy@90"
+    - "promauthproxy@93"
+    - "prometheus-blackbox-exporter"
   notify:
     - restart prometheus
     - restart alertmanager
     - restart promauthproxy
     - restart blackbox-exporter
-

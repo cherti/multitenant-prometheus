@@ -3,9 +3,9 @@ dependencies:
     - role: mailsender
     - role: letsencrypt
       domains:
-        - "alertmanager.{{ server_name }}"
-        - "prometheus.{{ server_name }}"
-        - "www.{{ server_name }}"
-        - "{{ server_name }}"
+        - "alertmanager.{{ public_url }}"
+        - "prometheus.{{ public_url }}"
+        - "www.{{ public_url }}"
+        - "{{ public_url }}"
       le_services:
         - nginx
